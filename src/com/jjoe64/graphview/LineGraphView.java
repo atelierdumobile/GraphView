@@ -19,6 +19,9 @@
 
 package com.jjoe64.graphview;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -33,9 +36,9 @@ import com.jjoe64.graphview.GraphViewSeries.GraphViewSeriesStyle;
  */
 public class LineGraphView extends GraphView {
 	private final Paint paintBackground;
-	private boolean drawBackground;
-	private boolean drawDataPoints;
+	private List<Integer> drawBackgroundIndex = new ArrayList<Integer>();
 	private float dataPointsRadius = 10f;
+	private List<Integer> drawDataIndex = new ArrayList<Integer>();
 
 	public LineGraphView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -56,8 +59,11 @@ public class LineGraphView extends GraphView {
 	}
 
 	@Override
-	public void drawSeries(Canvas canvas, GraphViewDataInterface[] values, float graphwidth, float graphheight, float border, double minX, double minY, double diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
+	public void drawSeries(Canvas canvas, int index, float graphwidth, float graphheight, float border, double minX,
+			double minY, double diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
 		// draw background
+
+		GraphViewDataInterface[] values = _values(index);
 		double lastEndY = 0;
 		double lastEndX = 0;
 
@@ -65,9 +71,8 @@ public class LineGraphView extends GraphView {
 		paint.setStrokeWidth(style.thickness);
 		paint.setColor(style.color);
 
-
 		Path bgPath = null;
-		if (drawBackground) {
+		if (drawBackgroundIndex.contains(index)) {
 			bgPath = new Path();
 		}
 
@@ -90,21 +95,22 @@ public class LineGraphView extends GraphView {
 				float endY = (float) (border - y) + graphheight;
 
 				// draw data point
-				if (drawDataPoints) {
-					//fix: last value was not drawn. Draw here now the end values
+				if (drawDataIndex.contains(index)) {
+					// fix: last value was not drawn. Draw here now the end values
 					canvas.drawCircle(endX, endY, dataPointsRadius, paint);
 				}
 
 				canvas.drawLine(startX, startY, endX, endY, paint);
 				if (bgPath != null) {
-					if (i==1) {
+					if (i == 1) {
 						firstX = startX;
 						bgPath.moveTo(startX, startY);
 					}
 					bgPath.lineTo(endX, endY);
 				}
-			} else if (drawDataPoints) {
-				//fix: last value not drawn as datapoint. Draw first point here, and then on every step the end values (above)
+			} else if (drawDataIndex.contains(index)) {
+				// fix: last value not drawn as datapoint. Draw first point here, and then on every step the end values
+				// (above)
 				float first_X = (float) x + (horstart + 1);
 				float first_Y = (float) (border - y) + graphheight;
 				canvas.drawCircle(first_X, first_Y, dataPointsRadius, paint);
@@ -130,17 +136,17 @@ public class LineGraphView extends GraphView {
 		return dataPointsRadius;
 	}
 
-	public boolean getDrawBackground() {
-		return drawBackground;
+	public List<Integer> getDrawBackground() {
+		return drawBackgroundIndex;
 	}
 
-	public boolean getDrawDataPoints() {
-		return drawDataPoints;
+	public List<Integer> getDrawDataPointsIndex() {
+		return this.drawDataIndex;
 	}
 
 	/**
-	 * sets the background color for the series.
-	 * This is not the background color of the whole graph.
+	 * sets the background color for the series. This is not the background color of the whole graph.
+	 * 
 	 * @see #setDrawBackground(boolean)
 	 */
 	@Override
@@ -150,6 +156,7 @@ public class LineGraphView extends GraphView {
 
 	/**
 	 * sets the radius of the circles at the data points.
+	 * 
 	 * @see #setDrawDataPoints(boolean)
 	 * @param dataPointsRadius
 	 */
@@ -158,20 +165,33 @@ public class LineGraphView extends GraphView {
 	}
 
 	/**
-	 * @param drawBackground true for a light blue background under the graph line
+	 * @param drawBackground
+	 *            true for a light blue background under the graph line
 	 * @see #setBackgroundColor(int)
 	 */
-	public void setDrawBackground(boolean drawBackground) {
-		this.drawBackground = drawBackground;
+	public void addDrawBackground(int index) {
+		this.drawBackgroundIndex.add(index);
 	}
 
 	/**
 	 * You can set the flag to let the GraphView draw circles at the data points
+	 * 
 	 * @see #setDataPointsRadius(float)
 	 * @param drawDataPoints
 	 */
-	public void setDrawDataPoints(boolean drawDataPoints) {
-		this.drawDataPoints = drawDataPoints;
+	public void addDrawDataPoints(int index) {
+		this.drawDataIndex.add(index);
+	}
+
+	public void addSeries(GraphViewSeries series, boolean drawPoints, boolean drawBackgroundColor) {
+		super.addSeries(series);
+		final int index = graphSeries.size() - 1;
+		if (drawPoints) {
+			addDrawDataPoints(index);
+		}
+		if (drawBackgroundColor) {
+			addDrawBackground(index);
+		}
 	}
 
 }

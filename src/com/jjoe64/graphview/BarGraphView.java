@@ -29,6 +29,7 @@ import com.jjoe64.graphview.GraphViewSeries.GraphViewSeriesStyle;
 
 /**
  * Draws a Bar Chart
+ * 
  * @author Muhammad Shahab Hameed
  */
 public class BarGraphView extends GraphView {
@@ -44,34 +45,35 @@ public class BarGraphView extends GraphView {
 	}
 
 	@Override
-	protected void drawHorizontalLabels(Canvas canvas, float border,
-			float horstart, float height, String[] horlabels, float graphwidth) {
+	protected void drawHorizontalLabels(Canvas canvas, float border, float horstart, float height, String[] horlabels,
+			float graphwidth) {
 		// horizontal labels + lines
 		paint.setTextAlign(Align.CENTER);
 
 		int hors = horlabels.length;
-		float barwidth = graphwidth/horlabels.length;
-		float textOffset = barwidth/2;
+		float barwidth = graphwidth / horlabels.length;
+		float textOffset = barwidth / 2;
 		for (int i = 0; i < horlabels.length; i++) {
 			// lines
 			float x = ((graphwidth / hors) * i) + horstart;
 			paint.setColor(graphViewStyle.getGridColor());
 			canvas.drawLine(x, height - border, x, border, paint);
 
-            if(getShowHorizontalLabels()) {
-                // text
-                x = barwidth*i + textOffset + horstart;
-                paint.setColor(graphViewStyle.getHorizontalLabelsColor());
-                canvas.drawText(horlabels[i], x, height - 4, paint);
-            }
+			if (getShowHorizontalLabels()) {
+				// text
+				x = barwidth * i + textOffset + horstart;
+				paint.setColor(graphViewStyle.getHorizontalLabelsColor());
+				canvas.drawText(horlabels[i], x, height - 4, paint);
+			}
 		}
 	}
 
 	@SuppressWarnings("deprecation")
 	@Override
-	public void drawSeries(Canvas canvas, GraphViewDataInterface[] values, float graphwidth, float graphheight,
-			float border, double minX, double minY, double diffX, double diffY,
-			float horstart, GraphViewSeriesStyle style) {
+	public void drawSeries(Canvas canvas, int index, float graphwidth, float graphheight, float border, double minX,
+			double minY, double diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
+
+		final GraphViewDataInterface[] values = _values(index);
 		float colwidth = graphwidth / (values.length);
 
 		paint.setStrokeWidth(style.thickness);
@@ -91,18 +93,19 @@ public class BarGraphView extends GraphView {
 				paint.setColor(style.color);
 			}
 
-			float left = (i * colwidth) + horstart -offset;
+			float left = (i * colwidth) + horstart - offset;
 			float top = (border - y) + graphheight;
-			float right = ((i * colwidth) + horstart) + (colwidth - 1) -offset;
+			float right = ((i * colwidth) + horstart) + (colwidth - 1) - offset;
 			canvas.drawRect(left, top, right, graphheight + border - 1, paint);
 
 			// -----Set values on top of graph---------
 			if (drawValuesOnTop) {
 				top -= 4;
-				if (top<=border) top+=border+4;
+				if (top <= border)
+					top += border + 4;
 				paint.setTextAlign(Align.CENTER);
-				paint.setColor(valuesOnTopColor );
-				canvas.drawText(formatLabel(values[i].getY(), false), (left+right)/2, top, paint);
+				paint.setColor(valuesOnTopColor);
+				canvas.drawText(formatLabel(values[i].getY(), false), (left + right) / 2, top, paint);
 			}
 		}
 	}
@@ -117,6 +120,7 @@ public class BarGraphView extends GraphView {
 
 	/**
 	 * You can set the flag to let the GraphView draw the values on top of the bars
+	 * 
 	 * @param drawValuesOnTop
 	 */
 	public void setDrawValuesOnTop(boolean drawValuesOnTop) {
