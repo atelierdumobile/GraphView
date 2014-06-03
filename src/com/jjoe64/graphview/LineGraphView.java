@@ -59,8 +59,8 @@ public class LineGraphView extends GraphView {
 	}
 
 	@Override
-	public void drawSeries(Canvas canvas, int index, float graphwidth, float graphheight, float border, double minX,
-			double minY, double diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
+	public void drawSeries(Canvas canvas, int index, float graphwidth, float graphheight, float border, long minX,
+			double minY, long diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
 		// draw background
 
 		GraphViewDataInterface[] values = _values(index);
