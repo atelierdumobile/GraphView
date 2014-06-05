@@ -26,9 +26,8 @@ import android.graphics.Paint.Align;
 import android.view.ContextThemeWrapper;
 
 /**
- * Styles for the GraphView
- * Important: Use GraphViewSeries.GraphViewSeriesStyle for series-specify styling
- *
+ * Styles for the GraphView Important: Use GraphViewSeries.GraphViewSeriesStyle for series-specify styling
+ * 
  */
 public class GraphViewStyle {
 	private int verticalLabelsColor;
@@ -59,7 +58,7 @@ public class GraphViewStyle {
 	public int getGridColor() {
 		return gridColor;
 	}
-	
+
 	public GridStyle getGridStyle() {
 		return gridStyle;
 	}
@@ -123,7 +122,7 @@ public class GraphViewStyle {
 	public void setGridStyle(GridStyle style) {
 		gridStyle = style;
 	}
-	
+
 	public void setGridColor(int c) {
 		gridColor = c;
 	}
@@ -149,14 +148,16 @@ public class GraphViewStyle {
 	}
 
 	/**
-	 * @param numHorizontalLabels 0 = auto
+	 * @param numHorizontalLabels
+	 *            0 = auto
 	 */
 	public void setNumHorizontalLabels(int numHorizontalLabels) {
 		this.numHorizontalLabels = numHorizontalLabels;
 	}
 
 	/**
-	 * @param numVerticalLabels 0 = auto
+	 * @param numVerticalLabels
+	 *            0 = auto
 	 */
 	public void setNumVerticalLabels(int numVerticalLabels) {
 		this.numVerticalLabels = numVerticalLabels;
@@ -175,7 +176,8 @@ public class GraphViewStyle {
 	}
 
 	/**
-	 * @param verticalLabelsWidth 0 = auto
+	 * @param verticalLabelsWidth
+	 *            0 = auto
 	 */
 	public void setVerticalLabelsWidth(int verticalLabelsWidth) {
 		this.verticalLabelsWidth = verticalLabelsWidth;
@@ -183,11 +185,14 @@ public class GraphViewStyle {
 
 	/**
 	 * tries to get the theme's font color and use it for labels
-	 * @param context must be instance of ContextThemeWrapper
+	 * 
+	 * @param context
+	 *            must be instance of ContextThemeWrapper
 	 */
 	public void useTextColorFromTheme(Context context) {
 		if (context instanceof ContextThemeWrapper) {
-			TypedArray array = ((ContextThemeWrapper) context).getTheme().obtainStyledAttributes(new int[] {android.R.attr.textColorPrimary});
+			TypedArray array = ((ContextThemeWrapper) context).getTheme().obtainStyledAttributes(
+					new int[] { android.R.attr.textColorPrimary });
 			int color = array.getColor(0, getVerticalLabelsColor());
 			array.recycle();
 
@@ -195,7 +200,7 @@ public class GraphViewStyle {
 			setHorizontalLabelsColor(color);
 		}
 	}
-	
+
 	public enum GridStyle {
 		BOTH, VERTICAL, HORIZONTAL
 	}

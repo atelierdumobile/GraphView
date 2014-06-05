@@ -30,8 +30,6 @@ public class DisplayUtils {
 		//
 		DAY(DAY_DISPLAY, Calendar.DAY_OF_MONTH, 1, LEVEL_DAY),
 		//
-		QUARTER_DAY(DAY_DISPLAY, Calendar.DAY_OF_MONTH, 4, LEVEL_DAY),
-		//
 		WEEK(DAY_DISPLAY, Calendar.WEEK_OF_MONTH, 2, LEVEL_DAY),
 		//
 		MONTH(MONTH_DISPLAY, Calendar.MONTH, 1, LEVEL_MONTH),

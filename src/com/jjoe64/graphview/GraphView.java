@@ -141,7 +141,7 @@ abstract public class GraphView extends LinearLayout {
 			graphwidth = width;
 
 			if (horlabels.isEmpty()) {
-				horlabels = generateHorlabels();
+				generateHorlabels();
 			}
 			if (verlabels == null) {
 				verlabels = generateVerlabels(graphheight);
@@ -215,14 +215,6 @@ abstract public class GraphView extends LinearLayout {
 				} else if (viewportStart + viewportSize > maxX) {
 					viewportStart = maxX - viewportSize;
 				}
-
-				long minXViewPort = getMinX(false);
-				long maxXViewPort = getMaxX(false);
-				final long diff = getDiff(minXViewPort, maxXViewPort);
-				final long x = (minXViewPort + (diff * 1 / 2));
-				// eventX / screenSize.x));
-				final double y = getYValue(x);
-
 				// labels have to be regenerated
 				if (!staticHorizontalLabels) {
 					horlabels.clear();
@@ -340,12 +332,14 @@ abstract public class GraphView extends LinearLayout {
 			}
 			if (getGraphViewStyle().getVerticalLabelsWidth() == 0
 					&& getLayoutParams().width != verLabelTextWidth + GraphViewConfig.BORDER) {
-				setLayoutParams(new LayoutParams((int) (verLabelTextWidth + GraphViewConfig.BORDER),
-						LayoutParams.MATCH_PARENT));
+				mLayoutParams.width = (int) (verLabelTextWidth + GraphViewConfig.BORDER);
+				mLayoutParams.height = LayoutParams.MATCH_PARENT;
+				setLayoutParams(mLayoutParams);
 			} else if (getGraphViewStyle().getVerticalLabelsWidth() != 0
 					&& getGraphViewStyle().getVerticalLabelsWidth() != getLayoutParams().width) {
-				setLayoutParams(new LayoutParams(getGraphViewStyle().getVerticalLabelsWidth(),
-						LayoutParams.MATCH_PARENT));
+				mLayoutParams.width = getGraphViewStyle().getVerticalLabelsWidth();
+				mLayoutParams.height = LayoutParams.MATCH_PARENT;
+				setLayoutParams(mLayoutParams);
 			}
 
 			float border = GraphViewConfig.BORDER;
@@ -415,6 +409,10 @@ abstract public class GraphView extends LinearLayout {
 	private DisplayMode displayMode;
 
 	private long timePerPixel;
+
+	private LayoutParams mLayoutParams;
+
+	private Calendar mCalendar;
 
 	public GraphView(Context context, AttributeSet attrs) {
 		this(context, attrs.getAttributeValue(null, "title"));
@@ -493,8 +491,15 @@ abstract public class GraphView extends LinearLayout {
 	@Override
 	protected void onAttachedToWindow() {
 		super.onAttachedToWindow();
+
 		canShowHorizontalLabels = true;
+		mLayoutParams = new LayoutParams(0, 0);
+
+		// Date
+		mCalendar = Calendar.getInstance();
 		dateFormatter = new SimpleDateFormat("", Locale.getDefault());
+
+		// Screen Size
 		windowManager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
 		final Display display = windowManager.getDefaultDisplay();
 		screenSize = new Point();
@@ -508,18 +513,18 @@ abstract public class GraphView extends LinearLayout {
 		float x = 0;
 		final Long[] timeSet = horlabels2.keySet().toArray(new Long[horlabels2.size()]);
 		long timeToSet = getMinX(false), lastValue, diff;
-		final int numLabels = getGraphViewStyle().getNumHorizontalLabels();
-		final int labelsSize = horlabels2.size();
-		int ecart = (int) labelsSize / numLabels;
-		if (ecart == 0) {
-			ecart = horlabels2.size();
-		}
+		Log.e("DEBUG", "horlabels2 //// " + horlabels2.size());
+		Log.e("DEBUG", "timePerPixel //// " + timePerPixel);
+
 		for (int i = 0; i < horlabels2.size(); i++) {
 
 			lastValue = timeToSet;
 			timeToSet = timeSet[i];
 			diff = timeToSet - lastValue;
 			x = x + ((int) diff / timePerPixel);
+			// TODO : livrer
+			// Log.e("DEBUG", "diff //// " + diff);
+			// Log.e("DEBUG", "x [" + i + "]//// " + x);
 
 			paint.setColor(graphViewStyle.getGridColor());
 			if (graphViewStyle.getGridStyle() != GridStyle.VERTICAL) {
@@ -534,70 +539,70 @@ abstract public class GraphView extends LinearLayout {
 		}
 	}
 
-	protected Map<Long, String> generateHorLabelsInternal(long minX, long maxX) {
+	protected void generateHorLabelsInternal(long minX, long maxX) {
 
-		final Map<Long, String> collections = new LinkedHashMap<Long, String>();
 		final long diff = maxX - minX;
+		final double diffDay = (double) diff / DisplayUtils.ONE_DAY;
+		Log.e("DEBUG", "displayMode //// " + displayMode);
+		Log.e("DEBUG", "diffDay //// " + diffDay);
 
 		formatLabel(minX, diff, true);
 
-		dateFormatter.applyPattern(displayMode.mFormatPattern);
-
-		final Calendar calendar = Calendar.getInstance();
-		calendar.setTimeInMillis(minX);
+		mCalendar.setTimeInMillis(minX);
 
 		final int level = displayMode.mLevel;
 
 		if (level >= DisplayUtils.LEVEL_MINUTE) {
-			calendar.set(Calendar.SECOND, 0);
+			mCalendar.set(Calendar.SECOND, 0);
 		}
 		if (level >= DisplayUtils.LEVEL_HOUR) {
-			calendar.set(Calendar.MINUTE, 0);
+			mCalendar.set(Calendar.MINUTE, 0);
 		}
 		if (level >= DisplayUtils.LEVEL_DAY) {
-			calendar.set(Calendar.HOUR_OF_DAY, 0);
+			mCalendar.set(Calendar.HOUR_OF_DAY, 0);
 		}
 		if (level >= DisplayUtils.LEVEL_MONTH) {
-			calendar.set(Calendar.DAY_OF_MONTH, 0);
+			mCalendar.set(Calendar.DAY_OF_MONTH, 0);
 		}
 		if (level >= DisplayUtils.LEVEL_YEAR) {
-			calendar.set(Calendar.MONTH, 0);
+			mCalendar.set(Calendar.MONTH, 0);
 		}
 
-		calendar.set(Calendar.MILLISECOND, 0);
+		mCalendar.set(Calendar.MILLISECOND, 0);
 
-		int potentialValue = calendar.getActualMinimum(displayMode.mCalendarField);
-		final int maxValue = calendar.getActualMaximum(displayMode.mCalendarField);
-		final int realValue = calendar.get(displayMode.mCalendarField);
+		int potentialValue = mCalendar.getActualMinimum(displayMode.mCalendarField);
+		final int maxValue = mCalendar.getActualMaximum(displayMode.mCalendarField);
+		final int realValue = mCalendar.get(displayMode.mCalendarField);
 
+		boolean potentialFound = false;
 		for (int i = potentialValue; i <= maxValue; i = i + displayMode.mInterval) {
-			if (i > realValue) {
+			if (i >= realValue) {
+				potentialFound = true;
 				potentialValue = i;
 				break;
 			}
 		}
 
-		calendar.set(displayMode.mCalendarField, potentialValue);
+		// Means that we are beyond maximum value of the current field
+		if (!potentialFound) {
+
+			mCalendar.add(displayMode.mCalendarField, displayMode.mInterval);
+		}
+
+		mCalendar.set(displayMode.mCalendarField, potentialValue);
+		Log.e("DEBUG", "after //// " + dateFormatter.format(mCalendar.getTimeInMillis()));
 
 		long currentTime = -1;
 
-		final double diffDay = (double) diff / DisplayUtils.ONE_DAY;
-		final double diffHour = (double) (diff / DisplayUtils.ONE_HOUR);
-		Log.e("DEBUG", "displayMode //// " + displayMode);
-		Log.e("DEBUG", "diffDay //// " + diffDay);
-		Log.e("DEBUG", "diffHour //// " + diffHour);
-
-		collections.clear();
-
-		while ((currentTime = calendar.getTimeInMillis()) < maxX) {
-
+		horlabels.clear();
+		Log.e("DEBUG", "minX //// " + minX);
+		Log.e("DEBUG", "maxX //// " + maxX);
+		while ((currentTime = mCalendar.getTimeInMillis()) < maxX) {
 			if (currentTime != -1) {
-				collections.put(currentTime, formatLabel(currentTime, diff, true));
+				horlabels.put(currentTime, formatLabel(currentTime, diff, true));
 			}
-			calendar.add(displayMode.mCalendarField, displayMode.mInterval);
+			mCalendar.add(displayMode.mCalendarField, displayMode.mInterval);
 		}
-
-		return collections;
 
 	}
 
@@ -700,14 +705,14 @@ abstract public class GraphView extends LinearLayout {
 		return max - min;
 	}
 
-	private Map<Long, String> generateHorlabels() {
+	private void generateHorlabels() {
 
 		final long min = getMinX(false);
 		final long max = getMaxX(false);
 		final int width = getWidth();
 
 		timePerPixel = (long) ((max - min) / width);
-		return generateHorLabelsInternal(min, max);
+		generateHorLabelsInternal(min, max);
 
 	}
 
