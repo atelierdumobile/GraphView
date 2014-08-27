@@ -71,6 +71,12 @@ abstract public class GraphView extends LinearLayout {
 		static final float BORDER = 20;
 	}
 
+	public static interface GraphDataListener {
+		public void onTouchValueRequest(double x, double y);
+
+		public void onTouchValueClear();
+	}
+
 	private static final long HIDE_DELAY = 500;
 
 	private SimpleDateFormat dateFormatter;
@@ -189,6 +195,7 @@ abstract public class GraphView extends LinearLayout {
 		}
 
 		Toast m_currentToast;
+		private GraphDataListener mListener;
 
 		private void showToast(String text) {
 			if (m_currentToast == null) {
@@ -217,6 +224,11 @@ abstract public class GraphView extends LinearLayout {
 				}
 				// labels have to be regenerated
 				if (!staticHorizontalLabels) {
+					if (horlabels.isEmpty() == false) {
+						if (mListener != null) {
+							mListener.onTouchValueClear();
+						}
+					}
 					horlabels.clear();
 					initRedrawHorizontalLabels();
 				}
@@ -249,8 +261,15 @@ abstract public class GraphView extends LinearLayout {
 						&& (event.getAction() & MotionEvent.ACTION_MOVE) == 0) {
 					scrollingStarted = true;
 					handled = true;
+
 				}
 				if ((event.getAction() & MotionEvent.ACTION_UP) == MotionEvent.ACTION_UP) {
+					scrollingStarted = false;
+					lastTouchEventX = 0;
+					handled = true;
+				}
+
+				if ((event.getAction() & MotionEvent.ACTION_CANCEL) == MotionEvent.ACTION_CANCEL) {
 					scrollingStarted = false;
 					lastTouchEventX = 0;
 					handled = true;
@@ -272,6 +291,10 @@ abstract public class GraphView extends LinearLayout {
 				lastTouchEventX = 0;
 			}
 			return handled;
+		}
+
+		public void setGraphListener(GraphDataListener listener) {
+			this.mListener = listener;
 		}
 	}
 
@@ -422,6 +445,30 @@ abstract public class GraphView extends LinearLayout {
 		setLayoutParams(new LayoutParams(width, height));
 	}
 
+	public abstract double getRealXTimeValue(double x, Point screenSize);
+
+	public abstract double getRealYTimeValue(double currentTime, Point screenSize);
+
+	public GraphDataListener listener = new GraphDataListener() {
+
+		@Override
+		public void onTouchValueRequest(double x, double y) {
+			final double time = getRealXTimeValue(x, screenSize);
+			final double yValue = getRealYTimeValue(time, screenSize);
+		}
+
+		@Override
+		public void onTouchValueClear() {
+
+		}
+	};
+
+	private int XSize;
+
+	public void setGraphDataListener(GraphDataListener listener) {
+		this.listener = listener;
+	}
+
 	/**
 	 * @param context
 	 * @param title
@@ -445,6 +492,7 @@ abstract public class GraphView extends LinearLayout {
 		viewVerLabels = new VerLabelsView(context);
 		addView(viewVerLabels);
 		graphViewContentView = new GraphViewContentView(context);
+		graphViewContentView.setGraphListener(listener);
 		addView(graphViewContentView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, 1));
 	}
 
@@ -488,19 +536,27 @@ abstract public class GraphView extends LinearLayout {
 		redrawAll();
 	}
 
+	public int getGraphSeriesCount() {
+		return graphSeries.size();
+	}
+
 	@Override
 	protected void onAttachedToWindow() {
 		super.onAttachedToWindow();
 
-		canShowHorizontalLabels = true;
-		mLayoutParams = new LayoutParams(0, 0);
+		if (screenSize == null) {
 
-		// Date
-		mCalendar = Calendar.getInstance();
-		dateFormatter = new SimpleDateFormat("", Locale.getDefault());
+			canShowHorizontalLabels = true;
+			mLayoutParams = new LayoutParams(0, 0);
 
-		// Screen Size
-		windowManager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+			// Date
+			mCalendar = Calendar.getInstance();
+			dateFormatter = new SimpleDateFormat("", Locale.getDefault());
+
+			// Screen Size
+			windowManager = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+
+		}
 		final Display display = windowManager.getDefaultDisplay();
 		screenSize = new Point();
 		display.getSize(screenSize);
@@ -513,18 +569,17 @@ abstract public class GraphView extends LinearLayout {
 		float x = 0;
 		final Long[] timeSet = horlabels2.keySet().toArray(new Long[horlabels2.size()]);
 		long timeToSet = getMinX(false), lastValue, diff;
-		Log.e("DEBUG", "horlabels2 //// " + horlabels2.size());
-		Log.e("DEBUG", "timePerPixel //// " + timePerPixel);
+
+		XSize = 0;
 
 		for (int i = 0; i < horlabels2.size(); i++) {
 
-			lastValue = timeToSet;
+			lastValue = Long.valueOf(timeToSet);
 			timeToSet = timeSet[i];
+
 			diff = timeToSet - lastValue;
-			x = x + ((int) diff / timePerPixel);
-			// TODO : livrer
-			// Log.e("DEBUG", "diff //// " + diff);
-			// Log.e("DEBUG", "x [" + i + "]//// " + x);
+			XSize = Math.max(XSize, (int) (diff / timePerPixel));
+			x = x + XSize;
 
 			paint.setColor(graphViewStyle.getGridColor());
 			if (graphViewStyle.getGridStyle() != GridStyle.VERTICAL) {
@@ -542,9 +597,6 @@ abstract public class GraphView extends LinearLayout {
 	protected void generateHorLabelsInternal(long minX, long maxX) {
 
 		final long diff = maxX - minX;
-		final double diffDay = (double) diff / DisplayUtils.ONE_DAY;
-		Log.e("DEBUG", "displayMode //// " + displayMode);
-		Log.e("DEBUG", "diffDay //// " + diffDay);
 
 		formatLabel(minX, diff, true);
 
@@ -564,9 +616,6 @@ abstract public class GraphView extends LinearLayout {
 		if (level >= DisplayUtils.LEVEL_MONTH) {
 			mCalendar.set(Calendar.DAY_OF_MONTH, 0);
 		}
-		if (level >= DisplayUtils.LEVEL_YEAR) {
-			mCalendar.set(Calendar.MONTH, 0);
-		}
 
 		mCalendar.set(Calendar.MILLISECOND, 0);
 
@@ -576,7 +625,7 @@ abstract public class GraphView extends LinearLayout {
 
 		boolean potentialFound = false;
 		for (int i = potentialValue; i <= maxValue; i = i + displayMode.mInterval) {
-			if (i >= realValue) {
+			if (i > realValue) {
 				potentialFound = true;
 				potentialValue = i;
 				break;
@@ -590,13 +639,12 @@ abstract public class GraphView extends LinearLayout {
 		}
 
 		mCalendar.set(displayMode.mCalendarField, potentialValue);
-		Log.e("DEBUG", "after //// " + dateFormatter.format(mCalendar.getTimeInMillis()));
+		// Log.e("DEBUG", "after //// " + dateFormatter.format(mCalendar.getTimeInMillis()));
 
 		long currentTime = -1;
 
 		horlabels.clear();
-		Log.e("DEBUG", "minX //// " + minX);
-		Log.e("DEBUG", "maxX //// " + maxX);
+
 		while ((currentTime = mCalendar.getTimeInMillis()) < maxX) {
 			if (currentTime != -1) {
 				horlabels.put(currentTime, formatLabel(currentTime, diff, true));
@@ -665,9 +713,11 @@ abstract public class GraphView extends LinearLayout {
 	protected String formatLabel(double value, long diff, boolean isValueX) {
 		if (customLabelFormatter != null) {
 			if (isValueX) {
-				final DisplayMode newDisplayMode = customLabelFormatter.formatLabel(diff, isValueX);
+
+				final DisplayMode newDisplayMode = customLabelFormatter.formatLabel(diff, isValueX, XSize);
 				String label = null;
 				if (newDisplayMode != displayMode) {
+					Log.e("POTENTIAL", "newDisplayMode=" + newDisplayMode);
 					displayMode = newDisplayMode;
 					dateFormatter.applyPattern(displayMode.mFormatPattern);
 				}
@@ -713,7 +763,6 @@ abstract public class GraphView extends LinearLayout {
 
 		timePerPixel = (long) ((max - min) / width);
 		generateHorLabelsInternal(min, max);
-
 	}
 
 	synchronized private String[] generateVerlabels(float graphheight) {
@@ -935,10 +984,31 @@ abstract public class GraphView extends LinearLayout {
 
 	private Handler handler = new Handler();
 
+	private double xCursor = 0;
+
+	public void setXCursor(double xCursor) {
+		this.xCursor = xCursor;
+	}
+
+	/**
+	 * Same as {@link #setXCursor(double)} but with a percent value instead of direct value
+	 * 
+	 * @param percent
+	 *            percent of the size of the screen. Ex : 25 -> 25% of the screen
+	 */
+	public void setXCursorPercent(int percent) {
+		this.xCursor = (double) (screenSize.x * percent / 100);
+	}
+
 	private Runnable callBack = new Runnable() {
 
 		@Override
 		public void run() {
+			if (listener != null) {
+				final double x = getRealXTimeValue(xCursor, screenSize);
+				final double y = getRealYTimeValue(x, screenSize);
+				listener.onTouchValueRequest(x, y);
+			}
 			canShowHorizontalLabels = true;
 			invalidateView(graphViewContentView);
 		}
@@ -1155,6 +1225,7 @@ abstract public class GraphView extends LinearLayout {
 						@Override
 						public boolean onScale(ScaleGestureDetector detector) {
 							long center = viewportStart + viewportSize / 2;
+
 							viewportSize /= detector.getScaleFactor();
 							viewportStart = center - viewportSize / 2;
 
