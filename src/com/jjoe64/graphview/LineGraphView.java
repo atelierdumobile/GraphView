@@ -29,6 +29,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.util.AttributeSet;
+import android.util.Log;
 
 import com.jjoe64.graphview.GraphViewSeries.GraphViewSeriesStyle;
 
@@ -40,8 +41,8 @@ public class LineGraphView extends GraphView {
 	private List<Integer> drawBackgroundIndex = new ArrayList<Integer>();
 	private float dataPointsRadius = 10f;
 	private List<Integer> drawDataIndex = new ArrayList<Integer>();
-	private long lastMinX;
-	private long lastDiffX;
+	private float graphwidth = -1;
+	private int i;
 
 	public LineGraphView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -62,32 +63,34 @@ public class LineGraphView extends GraphView {
 	}
 
 	@Override
-	public double getRealXTimeValue(double screenPosition, Point screenSize) {
-
-		final double ratX = (double) screenPosition / screenSize.x;
-		final double valX = ratX * lastDiffX;
-		final double x = valX + lastMinX;
-
-		return x;
-	}
-
-	@Override
-	public double getRealYTimeValue(double currentTime, Point screenSize) {
-		GraphViewDataInterface[] values = _values(0);
+	public double getRealYTimeValue(int index, double percentPosition, Point screenSize) {
+		final GraphViewDataInterface[] values = _values(index);
 		double lastX = 0;
+
+		double minX = getMinX(false);
+		double maxX = getMaxX(false);
+		double diffX = maxX - minX;
+
+		final double screenPosition = (double) percentPosition * graphwidth;
 
 		for (int i = 0; i < values.length; i++) {
 			// X
-			double valX = values[i].getX();
-			if (values[i].getX() > currentTime) {
+			double valX = values[i].getX() - minX;
+			double ratX = valX / diffX;
+			double x = (graphwidth * ratX);
+
+			if (x > screenPosition) {
 				double n1 = values[i].getY();
 				double n = values[Math.max(0, i - 1)].getY();
-				final double diff = n1 - n;
-				final double fraction = (double) (currentTime - lastX) / (valX - lastX);
-				return n + ((double) fraction * diff);
+				final double fraction = (double) (screenPosition - lastX) / (x - lastX);
+				Log.e("DEBUG", "fraction=" + fraction);
+				if (fraction > 0.5) {
+					return n1;
+				} else {
+					return n;
+				}
 			}
-
-			lastX = valX;
+			lastX = x;
 
 		}
 
@@ -99,9 +102,15 @@ public class LineGraphView extends GraphView {
 			double minY, long diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
 		// draw background
 
+		GraphViewSeries serie = graphSeries.get(index);
+
 		GraphViewDataInterface[] values = _values(index);
 		double lastEndY = 0;
 		double lastEndX = 0;
+
+		if (this.graphwidth == -1) {
+			this.graphwidth = graphwidth;
+		}
 
 		// draw data
 		paint.setStrokeWidth(style.thickness);
@@ -112,13 +121,9 @@ public class LineGraphView extends GraphView {
 			bgPath = new Path();
 		}
 
-		lastMinX = minX;
-		lastDiffX = diffX;
-
 		lastEndY = 0;
 		lastEndX = 0;
 		float firstX = 0;
-
 		for (int i = 0; i < values.length; i++) {
 
 			// Y
@@ -129,7 +134,6 @@ public class LineGraphView extends GraphView {
 			double valX = values[i].getX() - minX;
 			double ratX = valX / diffX;
 			double x = graphwidth * ratX;
-
 			if (i > 0) {
 				float startX = (float) lastEndX + (horstart + 1);
 				float startY = (float) (border - lastEndY) + graphheight;
@@ -160,6 +164,7 @@ public class LineGraphView extends GraphView {
 				float first_X = (float) x + (horstart + 1);
 				float first_Y = (float) (border - y) + graphheight;
 				canvas.drawCircle(first_X, first_Y, dataPointsRadius, paint);
+
 			}
 			lastEndY = y;
 			lastEndX = x;

@@ -39,6 +39,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Build;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Display;
@@ -67,12 +68,15 @@ import com.jjoe64.graphview.utils.DisplayUtils.DisplayMode;
  */
 
 abstract public class GraphView extends LinearLayout {
+
+	public static final String GRAPH_NO_DATA_TAG = "GRAPH_NO_DATA_TAG";
+
 	static final private class GraphViewConfig {
 		static final float BORDER = 20;
 	}
 
 	public static interface GraphDataListener {
-		public void onTouchValueRequest(double x, double y);
+		public void onTouchValueRequest(String tag, double x, double y);
 
 		public void onTouchValueClear();
 	}
@@ -184,11 +188,14 @@ abstract public class GraphView extends LinearLayout {
 
 			double diffY = maxY - minY;
 			paint.setStrokeCap(Paint.Cap.ROUND);
-
 			for (int i = 0; i < graphSeries.size(); i++) {
 				drawSeries(canvas, i, graphwidth, graphheight, border, minX, minY, diffX, diffY, horstart,
 						graphSeries.get(i).style);
 			}
+
+			final double screenPosition = (double) xCursor * graphwidth;
+
+			canvas.drawLine((float) screenPosition - 1, 0, (float) screenPosition + 1, screenSize.y, paint);
 
 			if (showLegend)
 				drawLegend(canvas, height, width);
@@ -431,8 +438,6 @@ abstract public class GraphView extends LinearLayout {
 	private Point screenSize;
 	private DisplayMode displayMode;
 
-	private long timePerPixel;
-
 	private LayoutParams mLayoutParams;
 
 	private Calendar mCalendar;
@@ -445,24 +450,9 @@ abstract public class GraphView extends LinearLayout {
 		setLayoutParams(new LayoutParams(width, height));
 	}
 
-	public abstract double getRealXTimeValue(double x, Point screenSize);
+	public abstract double getRealYTimeValue(int index, double percentPosition, Point screenSize);
 
-	public abstract double getRealYTimeValue(double currentTime, Point screenSize);
-
-	public GraphDataListener listener = new GraphDataListener() {
-
-		@Override
-		public void onTouchValueRequest(double x, double y) {
-			final double time = getRealXTimeValue(x, screenSize);
-			final double yValue = getRealYTimeValue(time, screenSize);
-		}
-
-		@Override
-		public void onTouchValueClear() {
-
-		}
-	};
-
+	public GraphDataListener listener;
 	private int XSize;
 
 	public void setGraphDataListener(GraphDataListener listener) {
@@ -569,6 +559,9 @@ abstract public class GraphView extends LinearLayout {
 		float x = 0;
 		final Long[] timeSet = horlabels2.keySet().toArray(new Long[horlabels2.size()]);
 		long timeToSet = getMinX(false), lastValue, diff;
+		double minX = getMinX(false);
+		double maxX = getMaxX(false);
+		double diffX = maxX - minX;
 
 		XSize = 0;
 
@@ -578,8 +571,14 @@ abstract public class GraphView extends LinearLayout {
 			timeToSet = timeSet[i];
 
 			diff = timeToSet - lastValue;
-			XSize = Math.max(XSize, (int) (diff / timePerPixel));
-			x = x + XSize;
+
+			double valX = timeToSet - minX;
+			double ratX = valX / diffX;
+
+			x = (float) (graphwidth * ratX);
+
+			// XSize = Math.max(XSize, (int) (diff / timePerPixel));
+			// x = x + XSize;
 
 			paint.setColor(graphViewStyle.getGridColor());
 			if (graphViewStyle.getGridStyle() != GridStyle.VERTICAL) {
@@ -601,6 +600,8 @@ abstract public class GraphView extends LinearLayout {
 		formatLabel(minX, diff, true);
 
 		mCalendar.setTimeInMillis(minX);
+
+		Log.e("DEBUG", "level=" + displayMode);
 
 		final int level = displayMode.mLevel;
 
@@ -717,7 +718,6 @@ abstract public class GraphView extends LinearLayout {
 				final DisplayMode newDisplayMode = customLabelFormatter.formatLabel(diff, isValueX, XSize);
 				String label = null;
 				if (newDisplayMode != displayMode) {
-					Log.e("POTENTIAL", "newDisplayMode=" + newDisplayMode);
 					displayMode = newDisplayMode;
 					dateFormatter.applyPattern(displayMode.mFormatPattern);
 				}
@@ -759,9 +759,7 @@ abstract public class GraphView extends LinearLayout {
 
 		final long min = getMinX(false);
 		final long max = getMaxX(false);
-		final int width = getWidth();
 
-		timePerPixel = (long) ((max - min) / width);
 		generateHorLabelsInternal(min, max);
 	}
 
@@ -984,20 +982,10 @@ abstract public class GraphView extends LinearLayout {
 
 	private Handler handler = new Handler();
 
-	private double xCursor = 0;
+	protected double xCursor = 0;
 
 	public void setXCursor(double xCursor) {
 		this.xCursor = xCursor;
-	}
-
-	/**
-	 * Same as {@link #setXCursor(double)} but with a percent value instead of direct value
-	 * 
-	 * @param percent
-	 *            percent of the size of the screen. Ex : 25 -> 25% of the screen
-	 */
-	public void setXCursorPercent(int percent) {
-		this.xCursor = (double) (screenSize.x * percent / 100);
 	}
 
 	private Runnable callBack = new Runnable() {
@@ -1005,9 +993,14 @@ abstract public class GraphView extends LinearLayout {
 		@Override
 		public void run() {
 			if (listener != null) {
-				final double x = getRealXTimeValue(xCursor, screenSize);
-				final double y = getRealYTimeValue(x, screenSize);
-				listener.onTouchValueRequest(x, y);
+				for (int i = 0; i < graphSeries.size(); i++) {
+					final GraphViewSeries serie = graphSeries.get(i);
+					if (TextUtils.equals(serie.description, GRAPH_NO_DATA_TAG) == false) {
+						final double y = getRealYTimeValue(i, xCursor, screenSize);
+						listener.onTouchValueRequest(serie.description, xCursor, y);
+					}
+
+				}
 			}
 			canShowHorizontalLabels = true;
 			invalidateView(graphViewContentView);
