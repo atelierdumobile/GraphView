@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Paint.Align;
+import android.graphics.Typeface;
 import android.view.ContextThemeWrapper;
 
 /**
@@ -30,6 +31,9 @@ import android.view.ContextThemeWrapper;
  * 
  */
 public class GraphViewStyle {
+
+	public Typeface typeface;
+
 	private int verticalLabelsColor;
 	private int horizontalLabelsColor;
 	private int gridColor;
@@ -53,6 +57,14 @@ public class GraphViewStyle {
 		this.verticalLabelsColor = vLabelsColor;
 		this.horizontalLabelsColor = hLabelsColor;
 		this.gridColor = gridColor;
+	}
+
+	public Typeface getTypeface() {
+		return typeface;
+	}
+
+	public void setTypeface(Typeface typeface) {
+		this.typeface = typeface;
 	}
 
 	public int getGridColor() {
@@ -108,6 +120,7 @@ public class GraphViewStyle {
 	}
 
 	private void setDefaults() {
+		typeface = Typeface.DEFAULT;
 		verticalLabelsColor = Color.WHITE;
 		horizontalLabelsColor = Color.WHITE;
 		gridColor = Color.DKGRAY;

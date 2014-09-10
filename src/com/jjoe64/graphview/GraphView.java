@@ -34,6 +34,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
+import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -106,6 +107,10 @@ abstract public class GraphView extends LinearLayout {
 		private float lastTouchEventX;
 		private float graphwidth;
 		private boolean scrollingStarted;
+		private int lastScreenPosition = 0;
+		private Path valueIndicatorPath;
+		private Paint valueIndicatorPaint;
+		private int valueIndiatorSize;
 
 		/**
 		 * @param context
@@ -113,6 +118,12 @@ abstract public class GraphView extends LinearLayout {
 		public GraphViewContentView(Context context) {
 			super(context);
 			setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+			valueIndicatorPath = new Path();
+			valueIndicatorPaint = new Paint();
+			valueIndicatorPaint.setColor(android.graphics.Color.RED);
+			valueIndicatorPaint.setStyle(Paint.Style.FILL_AND_STROKE);
+			valueIndicatorPaint.setAntiAlias(true);
+			valueIndiatorSize = context.getResources().getDimensionPixelSize(R.dimen.graphview_valueIndicator_size);
 		}
 
 		/**
@@ -153,15 +164,15 @@ abstract public class GraphView extends LinearLayout {
 			if (horlabels.isEmpty()) {
 				generateHorlabels();
 			}
-			if (verlabels == null) {
-				verlabels = generateVerlabels(graphheight);
+			if (verlabels.isEmpty()) {
+				generateVerlabels(graphheight);
 			}
 
 			// vertical lines
 			if (graphViewStyle.getGridStyle() != GridStyle.HORIZONTAL) {
 				paint.setTextAlign(Align.LEFT);
-				int vers = verlabels.length - 1;
-				for (int i = 0; i < verlabels.length; i++) {
+				int vers = verlabels.size() - 1;
+				for (int i = 0; i < verlabels.size(); i++) {
 					paint.setColor(graphViewStyle.getGridColor());
 					float y = ((graphheight / vers) * i) + border;
 					canvas.drawLine(horstart, y, width, y, paint);
@@ -194,11 +205,26 @@ abstract public class GraphView extends LinearLayout {
 			}
 
 			final double screenPosition = (double) xCursor * graphwidth;
-
-			canvas.drawLine((float) screenPosition - 1, 0, (float) screenPosition + 1, screenSize.y, paint);
+			generateArrowPath((int) screenPosition);
+			canvas.drawPath(valueIndicatorPath, valueIndicatorPaint);
+			canvas.drawLine((float) screenPosition - 1, valueIndiatorSize, (float) screenPosition + 1, graphheight
+					+ border, valueIndicatorPaint);
 
 			if (showLegend)
 				drawLegend(canvas, height, width);
+		}
+
+		public void generateArrowPath(int screenPosition) {
+			if (lastScreenPosition != screenPosition) {
+				lastScreenPosition = screenPosition;
+				valueIndicatorPath.reset();
+
+				valueIndicatorPath.moveTo(screenPosition - valueIndiatorSize, 0);
+				valueIndicatorPath.lineTo(screenPosition + valueIndiatorSize, 0);
+				valueIndicatorPath.lineTo(screenPosition, valueIndiatorSize);
+				valueIndicatorPath.close();
+
+			}
 		}
 
 		Toast m_currentToast;
@@ -230,18 +256,18 @@ abstract public class GraphView extends LinearLayout {
 					viewportStart = maxX - viewportSize;
 				}
 				// labels have to be regenerated
-				if (!staticHorizontalLabels) {
-					if (horlabels.isEmpty() == false) {
-						if (mListener != null) {
-							mListener.onTouchValueClear();
-						}
-					}
-					horlabels.clear();
-					initRedrawHorizontalLabels();
+
+				horlabels.clear();
+				initRedrawHorizontalLabels();
+
+				if (verlabels.isEmpty() == false) {
+					invalidateView(viewVerLabels);
 				}
-				if (!staticVerticalLabels)
-					verlabels = null;
-				invalidateView(viewVerLabels);
+
+				if (manualYAxis == false) {
+					verlabels.clear();
+					initRedrawVerticalLabels();
+				}
 			}
 			invalidateView(this);
 		}
@@ -350,10 +376,12 @@ abstract public class GraphView extends LinearLayout {
 		protected void onDraw(Canvas canvas) {
 			// normal
 			paint.setStrokeWidth(0);
+			paint.setTypeface(getGraphViewStyle().getTypeface());
 
 			// measure bottom text
 			if (labelTextHeight == null || verLabelTextWidth == null) {
-				paint.setTextSize(getGraphViewStyle().getTextSize());
+				float textSize = getGraphViewStyle().getTextSize();
+				paint.setTextSize(textSize);
 				double testY = ((getMaxY() - getMinY()) * 0.783) + getMinY();
 				String testLabel = formatLabel(testY, 0, false);
 				paint.getTextBounds(testLabel, 0, testLabel.length(), textBounds);
@@ -372,39 +400,42 @@ abstract public class GraphView extends LinearLayout {
 				setLayoutParams(mLayoutParams);
 			}
 
-			float border = GraphViewConfig.BORDER;
-			border += labelTextHeight;
-			float height = getHeight();
-			float graphheight = height - (2 * border);
+			if (canShowVerticalLabels) {
 
-			if (verlabels == null) {
-				verlabels = generateVerlabels(graphheight);
-			}
+				float border = GraphViewConfig.BORDER;
+				border += labelTextHeight;
+				float height = getHeight();
+				float graphheight = height - (2 * border);
 
-			// vertical labels
-			paint.setTextAlign(getGraphViewStyle().getVerticalLabelsAlign());
-			int labelsWidth = getWidth();
-			int labelsOffset = 0;
-			if (getGraphViewStyle().getVerticalLabelsAlign() == Align.RIGHT) {
-				labelsOffset = labelsWidth;
-			} else if (getGraphViewStyle().getVerticalLabelsAlign() == Align.CENTER) {
-				labelsOffset = labelsWidth / 2;
-			}
-			int vers = verlabels.length - 1;
-			for (int i = 0; i < verlabels.length; i++) {
-				float y = ((graphheight / vers) * i) + border;
-				paint.setColor(graphViewStyle.getVerticalLabelsColor());
-				canvas.drawText(verlabels[i], labelsOffset, y, paint);
-			}
+				if (verlabels.isEmpty()) {
+					generateVerlabels(graphheight);
+				}
 
-			// reset
-			paint.setTextAlign(Align.LEFT);
+				// vertical labels
+				paint.setTextAlign(getGraphViewStyle().getVerticalLabelsAlign());
+				int labelsWidth = getWidth();
+				int labelsOffset = 0;
+				if (getGraphViewStyle().getVerticalLabelsAlign() == Align.RIGHT) {
+					labelsOffset = labelsWidth;
+				} else if (getGraphViewStyle().getVerticalLabelsAlign() == Align.CENTER) {
+					labelsOffset = labelsWidth / 2;
+				}
+				int vers = verlabels.size() - 1;
+				for (int i = 0; i < verlabels.size(); i++) {
+					float y = ((graphheight / vers) * i) + border;
+					paint.setColor(graphViewStyle.getVerticalLabelsColor());
+					canvas.drawText(verlabels.get(i), labelsOffset, y, paint);
+				}
+
+				// reset
+				paint.setTextAlign(Align.LEFT);
+			}
 		}
 	}
 
 	protected final Paint paint;
 	private Map<Long, String> horlabels = new LinkedHashMap<Long, String>();
-	private String[] verlabels;
+	private Map<Integer, String> verlabels = new LinkedHashMap<Integer, String>();
 	private String title;
 	private boolean scrollable;
 	private boolean disableTouch;
@@ -429,8 +460,7 @@ abstract public class GraphView extends LinearLayout {
 	private Integer horLabelTextWidth;
 	private Integer verLabelTextWidth;
 	private final Rect textBounds = new Rect();
-	private boolean staticHorizontalLabels;
-	private boolean staticVerticalLabels;
+
 	private boolean showHorizontalLabels = true;
 	private boolean showVerticalLabels = true;
 	private boolean canShowHorizontalLabels;
@@ -453,7 +483,6 @@ abstract public class GraphView extends LinearLayout {
 	public abstract double getRealYTimeValue(int index, double percentPosition, Point screenSize);
 
 	public GraphDataListener listener;
-	private int XSize;
 
 	public void setGraphDataListener(GraphDataListener listener) {
 		this.listener = listener;
@@ -537,6 +566,7 @@ abstract public class GraphView extends LinearLayout {
 		if (screenSize == null) {
 
 			canShowHorizontalLabels = true;
+			canShowVerticalLabels = true;
 			mLayoutParams = new LayoutParams(0, 0);
 
 			// Date
@@ -563,8 +593,6 @@ abstract public class GraphView extends LinearLayout {
 		double maxX = getMaxX(false);
 		double diffX = maxX - minX;
 
-		XSize = 0;
-
 		for (int i = 0; i < horlabels2.size(); i++) {
 
 			lastValue = Long.valueOf(timeToSet);
@@ -581,6 +609,7 @@ abstract public class GraphView extends LinearLayout {
 			// x = x + XSize;
 
 			paint.setColor(graphViewStyle.getGridColor());
+			paint.setTypeface(getGraphViewStyle().getTypeface());
 			if (graphViewStyle.getGridStyle() != GridStyle.VERTICAL) {
 				canvas.drawLine(x, height - border, x, border, paint);
 			}
@@ -715,7 +744,7 @@ abstract public class GraphView extends LinearLayout {
 		if (customLabelFormatter != null) {
 			if (isValueX) {
 
-				final DisplayMode newDisplayMode = customLabelFormatter.formatLabel(diff, isValueX, XSize);
+				final DisplayMode newDisplayMode = customLabelFormatter.formatLabel(diff, isValueX);
 				String label = null;
 				if (newDisplayMode != displayMode) {
 					displayMode = newDisplayMode;
@@ -731,18 +760,14 @@ abstract public class GraphView extends LinearLayout {
 				}
 			}
 		}
+
 		int i = isValueX ? 1 : 0;
 		if (numberformatter[i] == null) {
 			numberformatter[i] = NumberFormat.getNumberInstance();
-			double highestvalue = isValueX ? getMaxX(false) : getMaxY();
-			double lowestvalue = isValueX ? getMinX(false) : getMinY();
-			if (highestvalue - lowestvalue < 0.1) {
-				numberformatter[i].setMaximumFractionDigits(6);
-			} else if (highestvalue - lowestvalue < 1) {
-				numberformatter[i].setMaximumFractionDigits(4);
-			} else if (highestvalue - lowestvalue < 20) {
-				numberformatter[i].setMaximumFractionDigits(3);
-			} else if (highestvalue - lowestvalue < 100) {
+
+			if (mInterval < 0.1) {
+				numberformatter[i].setMaximumFractionDigits(2);
+			} else if (mInterval < 1) {
 				numberformatter[i].setMaximumFractionDigits(1);
 			} else {
 				numberformatter[i].setMaximumFractionDigits(0);
@@ -763,7 +788,7 @@ abstract public class GraphView extends LinearLayout {
 		generateHorLabelsInternal(min, max);
 	}
 
-	synchronized private String[] generateVerlabels(float graphheight) {
+	synchronized private void generateVerlabels(float graphheight) {
 		int numLabels = getGraphViewStyle().getNumVerticalLabels() - 1;
 		if (numLabels < 0) {
 			if (graphheight <= 0)
@@ -774,7 +799,9 @@ abstract public class GraphView extends LinearLayout {
 						"Height of Graph is smaller than the label text height, so no vertical labels were shown!");
 			}
 		}
-		String[] labels = new String[numLabels + 1];
+
+		verlabels.clear();
+
 		double min = getMinY();
 		double max = getMaxY();
 		if (max == min) {
@@ -790,9 +817,8 @@ abstract public class GraphView extends LinearLayout {
 		}
 
 		for (int i = 0; i <= numLabels; i++) {
-			labels[numLabels - i] = formatLabel(min + ((max - min) * i / numLabels), 0, false);
+			verlabels.put((numLabels - i), formatLabel(min + (mInterval * i), 0, false));
 		}
-		return labels;
 	}
 
 	public double getYValue(double xValue) {
@@ -988,7 +1014,15 @@ abstract public class GraphView extends LinearLayout {
 		this.xCursor = xCursor;
 	}
 
-	private Runnable callBack = new Runnable() {
+	private Runnable invalidateVerticalRunnable = new Runnable() {
+		@Override
+		public void run() {
+			canShowVerticalLabels = true;
+			invalidateView(viewVerLabels);
+		}
+	};
+
+	private Runnable invalidateHorizontalRunnable = new Runnable() {
 
 		@Override
 		public void run() {
@@ -1007,10 +1041,25 @@ abstract public class GraphView extends LinearLayout {
 		}
 	};
 
+	private boolean canShowVerticalLabels;
+
+	private double mInterval;
+
+	public void initRedrawVerticalLabels() {
+		canShowVerticalLabels = true;
+		handler.removeCallbacks(invalidateVerticalRunnable);
+		handler.post(invalidateVerticalRunnable);
+	}
+
 	public void initRedrawHorizontalLabels() {
-		canShowHorizontalLabels = false;
-		handler.removeCallbacks(callBack);
-		handler.postDelayed(callBack, HIDE_DELAY);
+		if (canShowHorizontalLabels) {
+			if (listener != null) {
+				listener.onTouchValueClear();
+			}
+			canShowHorizontalLabels = false;
+		}
+		handler.removeCallbacks(invalidateHorizontalRunnable);
+		handler.postDelayed(invalidateHorizontalRunnable, HIDE_DELAY);
 	}
 
 	public void redrawHorizontalLabels() {
@@ -1018,14 +1067,18 @@ abstract public class GraphView extends LinearLayout {
 		invalidateView(graphViewContentView);
 	}
 
+	public void redrawVerticalLabels() {
+		initRedrawVerticalLabels();
+		invalidateView(viewVerLabels);
+	}
+
 	/**
 	 * forces graphview to invalide all views and caches. Normally there is no need to call this manually.
 	 */
 	public void redrawAll() {
-		if (!staticVerticalLabels)
-			verlabels = null;
-		if (!staticHorizontalLabels)
-			horlabels.clear();
+
+		verlabels.clear();
+		horlabels.clear();
 		numberformatter[0] = null;
 		numberformatter[1] = null;
 		labelTextHeight = null;
@@ -1033,7 +1086,7 @@ abstract public class GraphView extends LinearLayout {
 		verLabelTextWidth = null;
 
 		invalidateView(this);
-		invalidateView(viewVerLabels);
+		redrawVerticalLabels();
 		redrawHorizontalLabels();
 	}
 
@@ -1089,13 +1142,12 @@ abstract public class GraphView extends LinearLayout {
 
 		// don't clear labels width/height cache
 		// so that the display is not flickering
-		if (!staticVerticalLabels)
-			verlabels = null;
-		if (!staticHorizontalLabels)
-			horlabels.clear();
+
+		verlabels.clear();
+		horlabels.clear();
 
 		invalidateView(this);
-		invalidateView(viewVerLabels);
+		redrawVerticalLabels();
 		redrawHorizontalLabels();
 	}
 
@@ -1178,9 +1230,12 @@ abstract public class GraphView extends LinearLayout {
 	 * @param max
 	 * @param min
 	 */
-	public void setManualYAxisBounds(double max, double min) {
+	public void setManualYAxisBounds(double min, double max, double interval) {
 		manualMaxYValue = max;
 		manualMinYValue = min;
+		this.mInterval = interval;
+		final int numVerticalLabels = (int) ((max - min + interval) / interval);
+		getGraphViewStyle().setNumVerticalLabels(numVerticalLabels);
 		manualYAxis = true;
 	}
 
@@ -1272,17 +1327,6 @@ abstract public class GraphView extends LinearLayout {
 	 */
 	public void setTitle(String title) {
 		this.title = title;
-	}
-
-	/**
-	 * set's static vertical labels (from top to bottom)
-	 * 
-	 * @param verlabels
-	 *            if null, labels were generated automatically
-	 */
-	public void setVerticalLabels(String[] verlabels) {
-		staticVerticalLabels = verlabels != null;
-		this.verlabels = verlabels;
 	}
 
 	/**

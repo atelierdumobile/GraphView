@@ -37,9 +37,8 @@ public interface CustomLabelFormatter {
 	 *            can be (maxX - minX) or (maxY - minY)
 	 * @param isValueX
 	 *            true if is X value, false if Y value
-	 * @param xSize
 	 * @return
 	 */
-	public DisplayMode formatLabel(double diff, boolean isValueX, int xSize);
+	public DisplayMode formatLabel(double diff, boolean isValueX);
 
 }

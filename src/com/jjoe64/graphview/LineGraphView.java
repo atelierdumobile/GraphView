@@ -29,7 +29,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.util.AttributeSet;
-import android.util.Log;
 
 import com.jjoe64.graphview.GraphViewSeries.GraphViewSeriesStyle;
 
@@ -83,7 +82,6 @@ public class LineGraphView extends GraphView {
 				double n1 = values[i].getY();
 				double n = values[Math.max(0, i - 1)].getY();
 				final double fraction = (double) (screenPosition - lastX) / (x - lastX);
-				Log.e("DEBUG", "fraction=" + fraction);
 				if (fraction > 0.5) {
 					return n1;
 				} else {
@@ -139,8 +137,6 @@ public class LineGraphView extends GraphView {
 				float startY = (float) (border - lastEndY) + graphheight;
 				float endX = (float) x + (horstart + 1);
 				float endY = (float) (border - y) + graphheight;
-
-				// Log.e("DEBUG", "startX=" + startX);
 
 				// Log.e("DEBUG", "endX" + endX);
 
