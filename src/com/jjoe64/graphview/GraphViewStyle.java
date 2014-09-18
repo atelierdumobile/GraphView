@@ -130,6 +130,7 @@ public class GraphViewStyle {
 		legendSpacing = 10;
 		legendMarginBottom = 0;
 		verticalLabelsAlign = Align.LEFT;
+		indicatorColor = Color.BLACK;
 	}
 
 	public void setGridStyle(GridStyle style) {
@@ -216,5 +217,15 @@ public class GraphViewStyle {
 
 	public enum GridStyle {
 		BOTH, VERTICAL, HORIZONTAL
+	}
+
+	public int indicatorColor;
+
+	public int getIndicatorColor() {
+		return indicatorColor;
+	}
+
+	public void setIndicatorColor(int indicatorColor) {
+		this.indicatorColor = indicatorColor;
 	}
 }

@@ -27,7 +27,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.Point;
 import android.util.AttributeSet;
 
 import com.jjoe64.graphview.GraphViewSeries.GraphViewSeriesStyle;
@@ -41,7 +40,6 @@ public class LineGraphView extends GraphView {
 	private float dataPointsRadius = 10f;
 	private List<Integer> drawDataIndex = new ArrayList<Integer>();
 	private float graphwidth = -1;
-	private int i;
 
 	public LineGraphView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -61,8 +59,12 @@ public class LineGraphView extends GraphView {
 		paintBackground.setAlpha(128);
 	}
 
+	public double getFraction(double screenPosition, double lastX, double x) {
+		return (double) (screenPosition - lastX) / (x - lastX);
+	}
+
 	@Override
-	public double getRealYTimeValue(int index, double percentPosition, Point screenSize) {
+	public double getRealYTimeValue(int index, double percentPosition) {
 		final GraphViewDataInterface[] values = _values(index);
 		double lastX = 0;
 
@@ -81,7 +83,7 @@ public class LineGraphView extends GraphView {
 			if (x > screenPosition) {
 				double n1 = values[i].getY();
 				double n = values[Math.max(0, i - 1)].getY();
-				final double fraction = (double) (screenPosition - lastX) / (x - lastX);
+				final double fraction = getFraction(screenPosition, lastX, x);
 				if (fraction > 0.5) {
 					return n1;
 				} else {
@@ -95,12 +97,69 @@ public class LineGraphView extends GraphView {
 		return 0;
 	}
 
+	public int getIndex(GraphViewDataInterface[] values, int index, double screenPosition, double minX, double diffX,
+			double x, double x1) {
+
+		final int index1 = Math.min(values.length - 1, index + 1);
+
+		// Log.e("DEBUG", "x[" + index + "]= " + x);
+		// Log.e("DEBUG", "x1[" + index1 + "]= " + x1);
+
+		final double fraction = getFraction(screenPosition, x, x1);
+		// Log.e("DEBUG", "fraction=" + fraction);
+		if (fraction > 0.5) {
+			return index1;
+		} else {
+			return index;
+		}
+	}
+
+	public PaintHolder getCirclePainted(GraphViewDataInterface[] values, int i, double x, double screenPosition,
+			boolean selectedFound, double minX, double diffX) {
+		final PaintHolder paintHolder = new PaintHolder();
+		// Log.e("DEBUG", "x=" + x);
+		// Log.e("DEBUG", "screenPosition=" + screenPosition);
+		// Log.e("DEBUG", "selectedFound=" + selectedFound);
+		// Log.e("DEBUG", "i=" + i);
+
+		final int index1 = Math.min(values.length - 1, i + 1);
+		final double valX1 = values[index1].getX() - minX;
+		final double ratX1 = valX1 / diffX;
+		final double x1 = (graphwidth * ratX1);
+
+		if ((x1 > screenPosition) && (selectedFound == false)) {
+			final int newIndex = getIndex(values, i, screenPosition, minX, diffX, x, x1);
+			// Log.e("DEBUG", "newIndex=" + newIndex);
+			paintHolder.paint = getCirclePaint(newIndex == i);
+			paintHolder.isSelected = (newIndex == i);
+		} else {
+			paintHolder.isSelected = false;
+			paintHolder.paint = paint;
+		}
+
+		return paintHolder;
+	}
+
+	public Paint getCirclePaint(boolean isSelected) {
+		if (isSelected) {
+			return paint;
+		} else {
+			return paint;
+		}
+	}
+
+	public static class PaintHolder {
+		public Paint paint;
+		public boolean isSelected;
+
+		public PaintHolder() {
+		}
+	}
+
 	@Override
 	public void drawSeries(Canvas canvas, int index, float graphwidth, float graphheight, float border, long minX,
 			double minY, long diffX, double diffY, float horstart, GraphViewSeriesStyle style) {
 		// draw background
-
-		GraphViewSeries serie = graphSeries.get(index);
 
 		GraphViewDataInterface[] values = _values(index);
 		double lastEndY = 0;
@@ -122,6 +181,15 @@ public class LineGraphView extends GraphView {
 		lastEndY = 0;
 		lastEndX = 0;
 		float firstX = 0;
+
+		final double screenPosition = (double) xCursor * graphwidth;
+
+		PaintHolder paintHolder = null;
+		boolean selectedFound = false;
+
+		// final GraphViewSeries serie = graphSeries.get(index);
+		// Log.e("DEBUG", "serie=" + serie.description);
+
 		for (int i = 0; i < values.length; i++) {
 
 			// Y
@@ -132,18 +200,21 @@ public class LineGraphView extends GraphView {
 			double valX = values[i].getX() - minX;
 			double ratX = valX / diffX;
 			double x = graphwidth * ratX;
+
 			if (i > 0) {
 				float startX = (float) lastEndX + (horstart + 1);
 				float startY = (float) (border - lastEndY) + graphheight;
 				float endX = (float) x + (horstart + 1);
 				float endY = (float) (border - y) + graphheight;
 
-				// Log.e("DEBUG", "endX" + endX);
-
 				// draw data point
 				if (drawDataIndex.contains(index)) {
 					// fix: last value was not drawn. Draw here now the end values
-					canvas.drawCircle(endX, endY, dataPointsRadius, paint);
+					paintHolder = getCirclePainted(values, i, endX, screenPosition, selectedFound, minX, diffX);
+					if (!selectedFound) {
+						selectedFound = paintHolder.isSelected;
+					}
+					canvas.drawCircle(endX, endY, dataPointsRadius, paintHolder.paint);
 				}
 
 				canvas.drawLine(startX, startY, endX, endY, paint);
@@ -159,7 +230,12 @@ public class LineGraphView extends GraphView {
 				// (above)
 				float first_X = (float) x + (horstart + 1);
 				float first_Y = (float) (border - y) + graphheight;
-				canvas.drawCircle(first_X, first_Y, dataPointsRadius, paint);
+
+				paintHolder = getCirclePainted(values, i, first_X, screenPosition, selectedFound, minX, diffX);
+				if (!selectedFound) {
+					selectedFound = paintHolder.isSelected;
+				}
+				canvas.drawCircle(first_X, first_Y, dataPointsRadius, paintHolder.paint);
 
 			}
 			lastEndY = y;

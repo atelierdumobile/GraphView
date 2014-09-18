@@ -39,6 +39,6 @@ public interface CustomLabelFormatter {
 	 *            true if is X value, false if Y value
 	 * @return
 	 */
-	public DisplayMode formatLabel(double diff, boolean isValueX);
+	public DisplayMode formatLabel(double diff);
 
 }
