@@ -78,6 +78,11 @@ abstract public class GraphView extends LinearLayout {
 	}
 
 	public static interface GraphDataListener {
+
+		public void onZoomIn();
+
+		public void onZoomOut();
+
 		public void onTouchValueRequest(String tag, double x, double y);
 
 		public void onTouchValueClear();
@@ -771,6 +776,10 @@ abstract public class GraphView extends LinearLayout {
 			return DisplayMode.DAY;
 		}
 
+		else if (diffDay > DisplayMode.SIX_HOUR.mFloor) {
+			return DisplayMode.SIX_HOUR;
+		}
+
 		else {
 			return DisplayMode.HOUR;
 		}
@@ -1321,7 +1330,17 @@ abstract public class GraphView extends LinearLayout {
 							long potentialNewViewPortSize = Long.valueOf("" + viewportSize);
 							long potentialNewViewportStart = Long.valueOf("" + viewportSize);
 
-							potentialNewViewPortSize /= detector.getScaleFactor();
+							final double scaleFactor = detector.getScaleFactor();
+
+							if (listener != null) {
+								if (scaleFactor > 1) {
+									listener.onZoomIn();
+								} else if (scaleFactor < 1) {
+									listener.onZoomOut();
+								}
+							}
+
+							potentialNewViewPortSize /= scaleFactor;
 							potentialNewViewportStart = center - potentialNewViewPortSize / 2;
 
 							// viewportStart must not be < minX

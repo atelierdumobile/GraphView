@@ -26,9 +26,8 @@ public class DisplayUtils {
 		//
 		HOUR(HOUR_DISPLAY, Calendar.HOUR_OF_DAY, 1, LEVEL_HOUR, (double) ((double) 1 / 12)),
 
-		//
-		// QUARTER_HOUR(HOUR_DISPLAY, Calendar.HOUR_OF_DAY, 4, LEVEL_HOUR),
-		//
+		SIX_HOUR(HOUR_DISPLAY, Calendar.HOUR_OF_DAY, 6, LEVEL_DAY, (double) ((double) 1 / 2)),
+
 		DAY(DAY_DISPLAY, Calendar.DAY_OF_MONTH, 1, LEVEL_DAY, 2.5),
 
 		WEEK(DAY_DISPLAY, Calendar.DAY_OF_MONTH, 7, LEVEL_DAY, 8),
