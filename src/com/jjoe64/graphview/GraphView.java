@@ -85,6 +85,12 @@ abstract public class GraphView extends LinearLayout {
 
 	private static final long HIDE_DELAY = 500;
 
+	public boolean indicatorVisible = true;
+
+	public void setIndicatorVisible(boolean indicatorVisible) {
+		this.indicatorVisible = indicatorVisible;
+	}
+
 	private SimpleDateFormat dateFormatter;
 
 	public void setDisplayMode(DisplayMode currentDisplayMode) {
@@ -208,11 +214,13 @@ abstract public class GraphView extends LinearLayout {
 			final double screenPosition = (double) xCursor * graphwidth;
 			generateArrowPath((int) screenPosition);
 
-			valueIndicatorPaint.setColor(getGraphViewStyle().getIndicatorColor());
-			canvas.drawPath(valueIndicatorPath, valueIndicatorPaint);
-			canvas.drawLine((float) screenPosition - 1, valueIndiatorSize, (float) screenPosition + 1, graphheight
-					+ border, valueIndicatorPaint);
+			if (indicatorVisible) {
 
+				valueIndicatorPaint.setColor(getGraphViewStyle().getIndicatorColor());
+				canvas.drawPath(valueIndicatorPath, valueIndicatorPaint);
+				canvas.drawLine((float) screenPosition - 1, valueIndiatorSize, (float) screenPosition + 1, graphheight
+						+ border, valueIndicatorPaint);
+			}
 			if (showLegend) {
 				drawLegend(canvas, height, width);
 			}
@@ -238,8 +246,8 @@ abstract public class GraphView extends LinearLayout {
 				viewportStart -= f * viewportSize / graphwidth;
 
 				// minimal and maximal view limit
-				long minX = getMinX(true);
-				long maxX = getMaxX(true);
+				long minX = getMinX(false);
+				long maxX = getMaxX(false);
 				if (viewportStart < minX) {
 					viewportStart = minX;
 				} else if (viewportStart + viewportSize > maxX) {
@@ -1317,13 +1325,13 @@ abstract public class GraphView extends LinearLayout {
 							potentialNewViewportStart = center - potentialNewViewPortSize / 2;
 
 							// viewportStart must not be < minX
-							final long minX = getMinX(true, potentialNewViewPortSize, potentialNewViewportStart);
+							final long minX = getMinX(false, potentialNewViewPortSize, potentialNewViewportStart);
 							if (potentialNewViewportStart < minX) {
 								potentialNewViewportStart = minX;
 							}
 
 							// viewportStart + viewportSize must not be > maxX
-							final long maxX = getMaxX(true, potentialNewViewPortSize, potentialNewViewportStart);
+							final long maxX = getMaxX(false, potentialNewViewPortSize, potentialNewViewportStart);
 							if (potentialNewViewPortSize == 0) {
 								potentialNewViewPortSize = maxX;
 							}

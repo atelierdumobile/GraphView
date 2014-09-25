@@ -228,4 +228,5 @@ public class GraphViewStyle {
 	public void setIndicatorColor(int indicatorColor) {
 		this.indicatorColor = indicatorColor;
 	}
+
 }

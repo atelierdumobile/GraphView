@@ -66,7 +66,8 @@ public class LineGraphView extends GraphView {
 	@Override
 	public double getRealYTimeValue(int index, double percentPosition) {
 		final GraphViewDataInterface[] values = _values(index);
-		double lastX = 0;
+
+		double lastX = 0, lastY = 0;
 
 		double minX = getMinX(false);
 		double maxX = getMaxX(false);
@@ -79,10 +80,10 @@ public class LineGraphView extends GraphView {
 			double valX = values[i].getX() - minX;
 			double ratX = valX / diffX;
 			double x = (graphwidth * ratX);
-
+			double n1 = values[i].getY();
 			if (x > screenPosition) {
-				double n1 = values[i].getY();
 				double n = values[Math.max(0, i - 1)].getY();
+
 				final double fraction = getFraction(screenPosition, lastX, x);
 				if (fraction > 0.5) {
 					return n1;
@@ -91,10 +92,11 @@ public class LineGraphView extends GraphView {
 				}
 			}
 			lastX = x;
+			lastY = n1;
 
 		}
 
-		return 0;
+		return lastY;
 	}
 
 	public int getIndex(GraphViewDataInterface[] values, int index, double screenPosition, double minX, double diffX,
@@ -174,9 +176,6 @@ public class LineGraphView extends GraphView {
 		paint.setColor(style.color);
 
 		Path bgPath = null;
-		if (drawBackgroundIndex.contains(index)) {
-			bgPath = new Path();
-		}
 
 		lastEndY = 0;
 		lastEndX = 0;
@@ -218,6 +217,11 @@ public class LineGraphView extends GraphView {
 				}
 
 				canvas.drawLine(startX, startY, endX, endY, paint);
+
+				if ((drawBackgroundIndex.contains(index)) && (bgPath == null)) {
+					bgPath = new Path();
+				}
+
 				if (bgPath != null) {
 					if (i == 1) {
 						firstX = startX;
